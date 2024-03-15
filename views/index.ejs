@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #cfbbbb;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #navbar {
+            width: 100%;
+            background-color: #007bff;
+            color: #fff;
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #navbar h1 {
+            margin: 0;
+        }
+
+        #user-info {
+            font-size: 18px;
+            color: #fff;
+        }
+
+        #add-contact-form {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            width: 400px;
+        }
+
+        #add-contact-form label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        #add-contact-form input[type="text"],
+        #add-contact-form input[type="tel"] {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        #add-contact-form button[type="submit"] {
+            width: 100%;
+            padding: 10px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #add-contact-form button[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+
+        #contact-list {
+            margin-top: 20px;
+            width: 100%;
+            padding-left: 20px;
+        }
+
+        ul {
+            list-style: decimal;
+            padding: 0;
+        }
+
+        .contact {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #fff;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+
+        .contact:hover {
+            background-color: #f0f0f0;
+        }
+    </style>
+</head>
+<body>
+    <div id="navbar">
+        <h1>Dashboard</h1>
+        <div id="user-info">
+            Welcome, <%= name %>!
+            <form action="/logout?_method=DELETE" method="POST" style="display: inline;">
+                <button type="submit">Log Out</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="contact-list">
+        <h2>Your Contacts:</h2>
+        <ul>
+            <% phoneNumbers.forEach((contact, index) => { %>
+                <li>
+                    <span class="contact" onclick="copyPhoneNumber('<%= contact.phone_number %>')"><%= index + 1 %>. <%= contact.contact_name %> - <%= contact.phone_number %></span>
+                </li>
+            <% }); %>
+        </ul>
+    </div>
+
+    <div id="add-contact-form">
+        <h1>Add Contact</h1>
+        <% if (messages.error) { %>
+            <p class="error"><%= messages.error %></p>
+        <% } %>
+        <form action="/add-contact" method="POST">
+            <label for="contact_name">Contact Name</label>
+            <input type="text" id="contact_name" name="contact_name" placeholder="Contact Name" required>
+            <label for="phone_number">Phone Number</label>
+            <input type="tel" id="phone_number" name="phone_number" placeholder="Phone Number" pattern="[0-9]{10}" required>
+            <button type="submit">Add Contact</button>
+        </form>
+    </div>
+
+    <script>
+        function copyPhoneNumber(phoneNumber) {
+            const tempInput = document.createElement('input');
+            tempInput.value = phoneNumber;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            alert('Phone number copied: ' + phoneNumber);
+        }
+    </script>
+</body>
+</html>
