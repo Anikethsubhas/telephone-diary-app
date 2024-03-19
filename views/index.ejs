@@ -7,7 +7,7 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #cfbbbb;
+            background-color: #f2f2f2;
             margin: 0;
             padding: 0;
             display: flex;
@@ -23,6 +23,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         #navbar h1 {
@@ -34,13 +35,74 @@
             color: #fff;
         }
 
+        #contact-list {
+            margin-top: 20px;
+            width: 80%;
+            max-width: 600px; /* Added max-width */
+        }
+
+        ul {
+            list-style: decimal;
+            padding: 0;
+        }
+
+        .contact {
+            display: flex;
+            align-items: center;
+            padding: 10px 20px;
+            background-color: #fff;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: background-color 0.3s ease;
+        }
+
+        .contact:hover {
+            background-color: #e9e9e9;
+        }
+
+        .contact-name {
+            flex: 1;
+            margin-right: 10px;
+        }
+
+        .contact-phone {
+            font-size: 14px;
+            color: #666;
+        }
+
+        #add-contact-button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        #add-contact-button:hover {
+            background-color: #0056b3;
+        }
+
         #add-contact-form {
             margin-top: 20px;
             padding: 20px;
             background-color: #fff;
             border-radius: 5px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            width: 400px;
+            width: 80%;
+            max-width: 600px; /* Added max-width */
+            transition: opacity 0.3s ease-in-out;
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        #add-contact-form.show-form {
+            opacity: 1;
+            visibility: visible;
         }
 
         #add-contact-form label {
@@ -72,29 +134,8 @@
             background-color: #0056b3;
         }
 
-        #contact-list {
-            margin-top: 20px;
-            width: 100%;
-            padding-left: 20px;
-        }
-
-        ul {
-            list-style: decimal;
-            padding: 0;
-        }
-
-        .contact {
-            display: inline-block;
-            padding: 10px 20px;
-            background-color: #fff;
-            border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            cursor: pointer;
-            margin-bottom: 10px;
-        }
-
-        .contact:hover {
-            background-color: #f0f0f0;
+        .error {
+            color: red;
         }
     </style>
 </head>
@@ -110,15 +151,20 @@
     </div>
 
     <div id="contact-list">
-        <h2>Your Contacts:</h2>
-        <ul>
-            <% phoneNumbers.forEach((contact, index) => { %>
-                <li>
-                    <span class="contact" onclick="copyPhoneNumber('<%= contact.phone_number %>')"><%= index + 1 %>. <%= contact.contact_name %> - <%= contact.phone_number %></span>
-                </li>
-            <% }); %>
-        </ul>
+        <% if (phoneNumbers.length > 0) { %>
+            <h2>Your Contacts:</h2>
+            <ul>
+                <% phoneNumbers.forEach((contact, index) => { %>
+                    <li class="contact" onclick="copyPhoneNumber('<%= contact.phone_number %>')">
+                        <div class="contact-name"><%= contact.contact_name %></div>
+                        <div class="contact-phone"><%= contact.phone_number %></div>
+                    </li>
+                <% }); %>
+            </ul>
+        <% } %>
     </div>
+    
+    <button id="add-contact-button" onclick="toggleAddContactForm()">Add Contact</button>
 
     <div id="add-contact-form">
         <h1>Add Contact</h1>
@@ -135,6 +181,11 @@
     </div>
 
     <script>
+        function toggleAddContactForm() {
+            const addContactForm = document.getElementById('add-contact-form');
+            addContactForm.classList.toggle('show-form');
+        }
+
         function copyPhoneNumber(phoneNumber) {
             const tempInput = document.createElement('input');
             tempInput.value = phoneNumber;
@@ -142,6 +193,7 @@
             tempInput.select();
             document.execCommand('copy');
             document.body.removeChild(tempInput);
+            console.log("number copied");
             alert('Phone number copied: ' + phoneNumber);
         }
     </script>

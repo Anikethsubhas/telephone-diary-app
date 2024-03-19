@@ -72,14 +72,14 @@ app.post('/add-contact', checkAuthenticated, async (req, res) => {
     // Check if the phone number is exactly 10 characters long
     if (phone_number.length !== 10) {
       req.flash('error', 'Phone number must be exactly 10 digits long');
-      return res.redirect('/add-contact');
+      return res.redirect('/');
     }
 
     // Check if the phone number already exists in the database for the current user
     const [existingPhoneNumbers] = await pool.promise().query('SELECT * FROM phone_numbers WHERE user_id = ? AND phone_number = ?', [req.user.id, phone_number]);
     if (existingPhoneNumbers.length > 0) {
       req.flash('error', 'Phone number already exists');
-      return res.redirect('/add-contact');
+      return res.redirect('/');
     }
 
     // Insert the new contact into the database
@@ -88,9 +88,10 @@ app.post('/add-contact', checkAuthenticated, async (req, res) => {
     res.redirect('/');
   } catch (error) {
     console.error('Error adding contact:', error);
-    res.redirect('/add-contact');
+    res.redirect('/');
   }
 });
+
 
 
 app.get('/login', checkNotAuthenticated, (req, res) => {
