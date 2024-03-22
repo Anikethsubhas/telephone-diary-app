@@ -1,15 +1,15 @@
 const LocalStrategy = require('passport-local').Strategy;
 const bcrypt = require('bcrypt');
-const mysql = require('mysql2');
+const pool = require('./db');
 
 function initialize(passport) {
-  const pool = mysql.createPool({
-    connectionLimit: 10,
-    host: 'localhost',
-    user: 'ani',
-    password: 'password',
-    database: 'UserInfo'
-  });
+  // const pool = mysql.createPool({
+  //   connectionLimit: 10,
+  //   host: 'localhost',
+  //   user: 'ani',
+  //   password: 'password',
+  //   database: 'UserInfo'
+  // });
 
   const authenticateUser = async (email, password, done) => {
     try {

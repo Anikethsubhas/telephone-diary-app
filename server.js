@@ -6,16 +6,8 @@ const flash = require('express-flash');
 const session = require('express-session');
 const methodOverride = require('method-override');
 const initializePassport = require('./passport-config');
-const mysql = require('mysql2');
+const pool = require('./db');
 
-// MySQL connection pool setup
-const pool = mysql.createPool({
-  connectionLimit: 10,
-  host: 'localhost',
-  user: 'ani',
-  password: 'password',
-  database: 'UserInfo'
-});
 
 initializePassport(
   passport,
