@@ -2,7 +2,7 @@ const mysql = require('mysql2')
 
 
 const con = mysql.createConnection({
-    host: "database-1.c9a0ckk4eu0o.ap-south-1.rds.amazonaws.com",
+    host: "terraform-20240325061504471800000001.c9a0ckk4eu0o.ap-south-1.rds.amazonaws.com"
     user: "admin",
     password: "12345678",
     database: "UserInfo"
