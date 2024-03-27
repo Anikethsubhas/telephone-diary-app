@@ -3,14 +3,6 @@ const bcrypt = require('bcrypt');
 const pool = require('./db');
 
 function initialize(passport) {
-  // const pool = mysql.createPool({
-  //   connectionLimit: 10,
-  //   host: 'localhost',
-  //   user: 'ani',
-  //   password: 'password',
-  //   database: 'UserInfo'
-  // });
-
   const authenticateUser = async (email, password, done) => {
     try {
       const [rows, fields] = await pool.promise().query('SELECT * FROM users WHERE email = ?', [email]);
