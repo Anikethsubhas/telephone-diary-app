@@ -1,5 +1,5 @@
 const express = require('express');
-const app = express();
+const promClient = require('prom-client');
 const bcrypt = require('bcrypt');
 const passport = require('passport');
 const flash = require('express-flash');
@@ -8,30 +8,50 @@ const methodOverride = require('method-override');
 const initializePassport = require('./passport-config');
 const pool = require('./db');
 
+const app = express();
+const metricsApp = express(); // New Express application for serving metrics
 
-initializePassport(
-  passport,
-  // Function to get user by email from the database
-  email => {
-    pool.query('SELECT * FROM users WHERE email = ?', [email], (error, results) => {
-      if (error) {
-        throw error;
-      }
-      return results[0];
-    });
-  },
-  // Function to get user by id from the database
-  id => {
-    pool.query('SELECT * FROM users WHERE id = ?', [id], (error, results) => {
-      if (error) {
-        throw error;
-      }
-      return results[0];
-    });
-  }
-);
+// Create a Prometheus Registry
+const promRegistry = new promClient.Registry();
 
-app.set('view-engine', 'ejs');
+// Create custom metrics
+const httpRequestDurationMicroseconds = new promClient.Histogram({
+    name: 'http_request_duration_seconds',
+    help: 'Duration of HTTP requests in seconds',
+    labelNames: ['method', 'route', 'status'],
+    registers: [promRegistry]
+});
+
+const httpRequestsTotal = new promClient.Counter({
+    name: 'http_requests_total',
+    help: 'Total number of HTTP requests',
+    labelNames: ['method', 'route', 'status'],
+    registers: [promRegistry]
+});
+
+// Middleware to record request duration
+const recordRequestDuration = (req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+        const duration = Date.now() - start;
+        httpRequestDurationMicroseconds
+            .labels(req.method, req.path, res.statusCode)
+            .observe(duration / 1000); // Convert to seconds
+    });
+    next();
+};
+
+// Middleware to record request count
+const recordRequestCount = (req, res, next) => {
+    httpRequestsTotal
+        .labels(req.method, req.path, res.statusCode)
+        .inc();
+    next();
+};
+
+// Apply middleware for the main app
+app.use(recordRequestDuration);
+app.use(recordRequestCount);
 app.use(express.urlencoded({ extended: false }));
 app.use(flash());
 app.use(session({
@@ -43,9 +63,10 @@ app.use(passport.initialize());
 app.use(passport.session());
 app.use(methodOverride('_method'));
 
-// app.get('/', checkAuthenticated, (req, res) => {
-//   res.render('index.ejs', { name: req.user.name });
-// });
+// Initialize Passport
+initializePassport(passport);
+
+// Define routes for the main app
 app.get('/', checkAuthenticated, async (req, res) => {
   try {
     // Fetch phone numbers associated with the logged-in user
@@ -84,8 +105,6 @@ app.post('/add-contact', checkAuthenticated, async (req, res) => {
   }
 });
 
-
-
 app.get('/login', checkNotAuthenticated, (req, res) => {
   res.render('login.ejs');
 });
@@ -102,7 +121,7 @@ app.get('/register', checkNotAuthenticated, (req, res) => {
 
 app.post('/register', checkNotAuthenticated, async (req, res) => {
   try {
-    const { name, email, password,confirm_password } = req.body;
+    const { name, email, password, confirm_password } = req.body;
     // Check if password and confirm password match
     if (password !== confirm_password) {
       req.flash('error', 'Passwords do not match');
@@ -138,9 +157,27 @@ app.delete('/logout', (req, res) => {
   });
 });
 
+// Start the main app on port 3000
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Main app is running on port ${PORT}`);
+});
 
+// Expose Prometheus metrics endpoint on port 9090
+const METRICS_PORT = 9091;
+metricsApp.get('/metrics', async (req, res) => {
+    res.set('Content-Type', promClient.register.contentType);
+    res.end(await promRegistry.metrics());
+});
+metricsApp.get('/', (req, res) => {
+  res.send('This is a metrics server');
+});
 
+metricsApp.listen(METRICS_PORT, () => {
+    console.log(`Metrics server is running on port ${METRICS_PORT}`);
+});
 
+// Authentication middleware
 function checkAuthenticated(req, res, next) {
   if (req.isAuthenticated()) {
     return next();
@@ -154,5 +191,3 @@ function checkNotAuthenticated(req, res, next) {
   }
   next();
 }
-
-app.listen(3000);
