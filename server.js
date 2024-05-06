@@ -7,6 +7,7 @@ const session = require('express-session');
 const methodOverride = require('method-override');
 const initializePassport = require('./passport-config');
 const pool = require('./db');
+const winston = require('winston');
 
 const app = express();
 const metricsApp = express(); // New Express application for serving metrics
@@ -29,6 +30,16 @@ const httpRequestsTotal = new promClient.Counter({
     registers: [promRegistry]
 });
 
+// Configure the logger
+const logger = winston.createLogger({
+  level: 'info',
+  transports: [
+    new winston.transports.Console(),
+    new winston.transports.File({ filename: 'combined.log' }),
+    new winston.transports.File({ filename: 'error.log', level: 'error' })
+  ]
+});
+
 // Middleware to record request duration
 const recordRequestDuration = (req, res, next) => {
     const start = Date.now();
@@ -37,6 +48,7 @@ const recordRequestDuration = (req, res, next) => {
         httpRequestDurationMicroseconds
             .labels(req.method, req.path, res.statusCode)
             .observe(duration / 1000); // Convert to seconds
+        logger.info(`${req.method} ${req.originalUrl} ${res.statusCode} - ${duration}ms`);
     });
     next();
 };
@@ -46,6 +58,7 @@ const recordRequestCount = (req, res, next) => {
     httpRequestsTotal
         .labels(req.method, req.path, res.statusCode)
         .inc();
+    logger.info(`${req.method} ${req.originalUrl} ${res.statusCode}`);
     next();
 };
 
@@ -67,14 +80,14 @@ app.use(methodOverride('_method'));
 initializePassport(passport);
 
 // Define routes for the main app
+
 app.get('/', checkAuthenticated, async (req, res) => {
   try {
-    // Fetch phone numbers associated with the logged-in user
     const [phoneNumbers] = await pool.promise().query('SELECT * FROM phone_numbers WHERE user_id = ?', [req.user.id]);
     res.render('index.ejs', { name: req.user.name, phoneNumbers });
   } catch (error) {
-    console.error('Error fetching phone numbers:', error);
-    res.redirect('/login'); // Redirect to login page in case of error
+    logger.error(`Error fetching phone numbers: ${error.message}`);
+    res.redirect('/login');
   }
 });
 
@@ -82,25 +95,23 @@ app.post('/add-contact', checkAuthenticated, async (req, res) => {
   try {
     const { contact_name, phone_number } = req.body;
 
-    // Check if the phone number is exactly 10 characters long
     if (phone_number.length !== 10) {
       req.flash('error', 'Phone number must be exactly 10 digits long');
       return res.redirect('/');
     }
 
-    // Check if the phone number already exists in the database for the current user
     const [existingPhoneNumbers] = await pool.promise().query('SELECT * FROM phone_numbers WHERE user_id = ? AND phone_number = ?', [req.user.id, phone_number]);
     if (existingPhoneNumbers.length > 0) {
       req.flash('error', 'Phone number already exists');
+        logger.warn('Phone number already exists');
       return res.redirect('/');
     }
 
-    // Insert the new contact into the database
     await pool.promise().query('INSERT INTO phone_numbers (user_id, contact_name, phone_number) VALUES (?, ?, ?)', [req.user.id, contact_name, phone_number]);
 
     res.redirect('/');
   } catch (error) {
-    console.error('Error adding contact:', error);
+    logger.error(`Error adding contact: ${error.message}`);
     res.redirect('/');
   }
 });
@@ -122,35 +133,34 @@ app.get('/register', checkNotAuthenticated, (req, res) => {
 app.post('/register', checkNotAuthenticated, async (req, res) => {
   try {
     const { name, email, password, confirm_password } = req.body;
-    // Check if password and confirm password match
+
     if (password !== confirm_password) {
       req.flash('error', 'Passwords do not match');
       return res.redirect('/register');
     }
 
-    // Check if email already exists in the database
     const [existingUsers] = await pool.promise().query('SELECT * FROM users WHERE email = ?', [email]);
     if (existingUsers.length > 0) {
-      // If email already exists, redirect to registration page with an error message
       req.flash('error', 'Email already exists');
+            logger.error('User already exists');
       return res.redirect('/register');
     }
 
-    // Email does not exist, proceed with registration
     const hashedPassword = await bcrypt.hash(password, 10);
     await pool.promise().query('INSERT INTO users (name, email, password) VALUES (?, ?, ?)', [name, email, hashedPassword]);
 
     res.redirect('/login');
   } catch (error) {
-    console.error('Error during registration:', error);
+    logger.error(`Error during registration: ${error.message}`);
     res.redirect('/register');
   }
 });
 
 app.delete('/logout', (req, res) => {
-  req.session.isAuthenticated = false; // Set authentication status to false
+  req.session.isAuthenticated = false;
   req.session.destroy((err) => {
     if (err) {
+      logger.error(`Error logging out: ${err.message}`);
       return next(err);
     }
     res.redirect('/login');
@@ -178,6 +188,7 @@ metricsApp.listen(METRICS_PORT, () => {
 });
 
 // Authentication middleware
+
 function checkAuthenticated(req, res, next) {
   if (req.isAuthenticated()) {
     return next();
